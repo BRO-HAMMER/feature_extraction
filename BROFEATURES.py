@@ -101,7 +101,7 @@ class KPFeatures:
 
         return kps, features
 
-    def process_batch(self, directory="", types=("png", "jpg"), name="batch", autosave=False, verbose=True):
+    def process_batch(self, directory, types=("png", "jpg"), name="batch", autosave=False, verbose=True):
         # generate a model from a dataset of images
         imglist = []
         for t in types:
@@ -168,18 +168,6 @@ class KPFeatures:
         with open(config_file, 'w') as outfile:
             json.dump(self.config, outfile)
 
-    def load_data(self, file):
-
-        try:
-            with open(file, 'rb') as infile:
-                obj = pickle.load(infile)
-
-            return obj
-
-        except FileNotFoundError:
-            print("[ERROR] File not found. {}".format(file))
-            return None
-
     def best_match(self, imgfile, ratio=0.75, visualize=2, verbose=True):
         """
         :param imgfile: image to be matched against the dataset
@@ -213,8 +201,7 @@ class KPFeatures:
         (kps1, features1) = self.extractor.compute(gray1, kps1)
         (kps2, features2) = self.extractor.compute(gray2, kps2)
 
-        # match the keypoints using the Euclidean distance and initialize
-        # the list of actual matches
+        # match the keypoints and initialize the list of actual matches
         raw_matches = self.matcher.knnMatch(features1, features2, 2)
         matches = []
 
@@ -241,6 +228,54 @@ class KPFeatures:
 
         if verbose:
             print("No matches.")
+            return None
+
+    def diagnose(self, sample, directory, types=("png", "jpg"), r_range=(0.5, 0.7, 0.9)):
+        # match sample image with each of the images in a directory and
+        # present diagnostic information
+        s_kps, s_features = self.process_img(sample, verbose=False)
+        s_name = path.split(sample)[-1].split(".")[0]
+        images = []
+        for t in types:
+            files = glob(path.join(directory,  "*." + t))
+            images.extend(files)
+
+        print("# of images to compare with {}: {}".format(s_name, len(images)))
+
+        # get a list of features and kps for each image
+        for imgfile in images:
+
+            name = path.split(imgfile)[-1].split(".")[0]
+            print("VS {}:".format(name))
+            kps, features = self.process_img(imgfile, verbose=False)
+            raw_matches = self.matcher.knnMatch(s_features, features, 2)
+
+            if raw_matches is not None:
+
+                for r in r_range:
+                    matches = []
+                    # loop over the raw matches
+                    for m in raw_matches:
+                        # ensure the distance passes ratio test
+                        if len(m) == 2 and m[0].distance < m[1].distance * r:
+                            matches.append((m[0].trainIdx, m[0].queryIdx))
+
+                    n_matches = len(matches)
+                    print("# of matches for ratio = {}: {}".format(r,n_matches))
+
+            else:
+                print("No matches were found.")
+
+    def load_data(self, file):
+
+        try:
+            with open(file, 'rb') as infile:
+                obj = pickle.load(infile)
+
+            return obj
+
+        except FileNotFoundError:
+            print("[ERROR] File not found. {}".format(file))
             return None
 
     def draw_matches(self, image1, image2, kps1, kps2, matches, match_name, animation=1):
