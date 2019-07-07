@@ -1,1 +1,0 @@
-{"detector": "SURF", "extractor": "SURF", "matcher": "BruteForce", "flann_params": null, "dictsize": 500}
