@@ -398,8 +398,8 @@ class HistFeatures:
             else:
                 if verbose:
                     print("[INFO] loading default HOG parameters")
-                self.hogparams = {"imsize": (100, 100), "ori": 9, "ppc": (4, 4), "cpb": (2, 2),
-                                  "trans_sqrt": True, "norm": "L2-Hys"}
+                self.hogparams = {"imsize": (100, 100), "ori": 9, "ppc": (8, 8), "cpb": (2, 2),
+                                  "trans_sqrt": True, "norm": "L1"}
 
         # model parameters
         self.n_neighbors = self.config["n_neighbors"]
@@ -441,10 +441,9 @@ class HistFeatures:
     def process_classes(self, directory, name="hist", types=("png", "jpg", "jpeg", "tif"),
                         autosave=False, verbose=True):
         """
-        Generate a model from a dataset of image classes.
-        Each non-empty subfolder in {directory} represents a class
-        and must contain images that fall into that class.
-        The name of each subdirectory will be used as labels for the classifier.
+        Generate a model from a dataset of image categories.
+        Each subfolder in {directory} represents a class and must contain images that fall into that class.
+        The subdirectories' names will be used as labels for the classifier.
         """
 
         # get a list of subdirectories
