@@ -9,7 +9,7 @@ import json
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import train_test_split
 from skimage import feature
-from utils import load_data
+from utils import load_data, move_file
 
 
 class KPFeatures:
@@ -111,8 +111,7 @@ class KPFeatures:
 
         return kps, features
 
-    def process_batch(self, directory, name="feats", types=("png", "jpg", "jpeg", "tif"),
-                      autosave=False, verbose=True):
+    def train(self, directory, name="feats", types=("png", "jpg", "jpeg", "tif"), autosave=False, verbose=True):
         # generate a model from a dataset of images contained in {directory}
         images = []
         for t in types:
@@ -146,12 +145,12 @@ class KPFeatures:
         self.dictionary = dictionary
 
         if autosave:
-            self.save_model(directory, name)
+            self.save_model(directory, name, verbose=verbose)
 
         if verbose:
             print("[INFO] Model created from database containing {} images.".format(len(images)))
 
-    def save_model(self, directory, name):
+    def save_model(self, directory, name, verbose=True):
 
         if self.vocabulary is None or self.dictionary is None or self.svm is None:
 
@@ -173,6 +172,9 @@ class KPFeatures:
         config_file = path.join(directory, name + "_config.json")
         with open(config_file, 'w') as outfile:
             json.dump(self.config, outfile)
+
+        if verbose:
+            print("Model successfully saved to " + directory)
 
     def best_match(self, imgfile, ratio=0.75, visualize=2, verbose=True):
         """
@@ -238,9 +240,6 @@ class KPFeatures:
             n_matches = len(matches)
 
             if n_matches > 0:
-                if verbose:
-                    # show some diagnostic information
-                    print("[INFO] # of matched keypoints: {}".format(n_matches))
 
                 # draw matches if indicated
                 if visualize > 0:
@@ -250,8 +249,60 @@ class KPFeatures:
                 return match_name, n_matches
 
         if verbose:
-            print("[INFO] No matches.")
-            return None
+            print("[INFO] No matches for {}.".format(path.basename(imgfile)))
+
+        return None, 0
+
+    def classify_batch(self, directory, ratio=0.75, min_matches=50, types=("png", "jpg", "jpeg", "tif"), verbose=True):
+        # classify a batch of images in folders with the name of the labels the model was trained in
+
+        if self.vocabulary is None or self.dictionary is None or self.svm is None:
+
+            print("[ERROR] Please create or load a model first.")
+            return
+
+        # get a list of all images in the directory
+        images = []
+        for t in types:
+            files = glob(path.join(directory,  "*." + t))
+            images.extend(files)
+
+        # start counters
+        results = {}
+        classified = 0
+        # classify each image
+        for imgfile in images:
+            name = path.basename(imgfile)
+            # predict image class
+            label, matches = self.best_match(imgfile, ratio=ratio, visualize=0, verbose=verbose)
+            # if the matches reach the confidence threshold, move the image to a folder
+            # named as the class the image was assigned to
+            if label is not None and matches is not None:
+                if matches >= min_matches:
+                    folder = path.join(directory, label)
+                    move_file(imgfile, folder)
+                    # tick up counters
+                    classified += 1
+
+                    if label in results:
+                        results[label] += 1
+                    else:
+                        results[label] = 1
+
+                    if verbose:
+                        print("[INFO] {} assigned to {} ({} matches)".format(name, label, matches))
+                elif verbose:
+                    print("[INFO] {} NOT classified (best prediction: {} with {} matches)".format(name, label, matches))
+
+        # provide diagnostic information
+        if verbose:
+            total = len(images)
+            left = total - classified
+            print("[INFO] Classification Results:\n"
+                  "Number of images: {}".format(total))
+            for keys, values in results.items():
+                print("{}: {} images".format(keys, values))
+            print("{} images were not classified".format(left))
 
     def diagnose(self, sample, directory, types=("png", "jpg", "jpeg", "tif"), r_range=(0.5, 0.7, 0.9)):
         # match sample image with each of the images in a directory and
