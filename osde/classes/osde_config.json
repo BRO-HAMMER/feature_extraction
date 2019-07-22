@@ -1,0 +1,1 @@
+{"detector": "SIFT", "extractor": "SIFT", "matcher": "BruteForce", "flann_params": null, "dictsize": 500, "resized_h": 600}

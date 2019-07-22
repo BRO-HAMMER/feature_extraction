@@ -204,7 +204,8 @@ class KPFeatures:
         # if the file is not available, just return the label
         if not path.isfile(self.dictionary[result]):
             if verbose:
-                print("[INFO] {} file was not found, skipping keypoint matching.".format(self.dictionary[result]))
+                print("[INFO] {} file was not found, "
+                      "not able to perform keypoint matching.".format(self.dictionary[result]))
 
             # return the name of the matching image and empty object
             return match_name, None
@@ -262,6 +263,7 @@ class KPFeatures:
             files = glob(path.join(directory,  "*." + t))
             images.extend(files)
 
+        images.sort()
         print("# of images to compare with {}: {}".format(s_name, len(images)))
 
         # get a list of features and kps for each image
@@ -494,7 +496,10 @@ class HistFeatures:
 
         match_name = self.dictionary[prediction]
 
-        return match_name, max(proba)*100
+        if verbose:
+            print("Predicted {} ( {}% )".format(match_name, max(proba)*100))
+
+        return match_name, max(proba)
 
     def train_knn(self, features, labels):
         # split train and test data
